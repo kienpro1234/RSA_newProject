@@ -2,7 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyCIQJ8QJXEje_ZKUbhRM8D-9TJxhrBQJwk",
   authDomain: "rsasurcrecommunication.firebaseapp.com",
   projectId: "rsasurcrecommunication",
@@ -13,8 +13,8 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const firestore = getFirestore(app);
+// const app = initializeApp(firebaseConfig);
+// const auth = getAuth(app);
+// const firestore = getFirestore(app);
 
-export { auth, firestore };
+// export { auth, firestore };

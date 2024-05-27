@@ -3,6 +3,12 @@
   font-optical-sizing: auto;
   font-style: normal;
 }
+.account{
+    transform: translateY(47%);
+    position: absolute;
+    font-size: 20px;
+    color: orange;
+}
 
 .section{
     min-height: 680px;

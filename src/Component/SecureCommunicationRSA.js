@@ -2,8 +2,13 @@ import React, { Fragment, useEffect, useState } from "react";
 import "./SecureCommunication_RSA.css";
 import bigInt from "big-integer";
 import Swal from "sweetalert2";
+import { getAuth, signOut } from "firebase/auth";
+import { Navigate, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 
 export default function SecureCommunicationRSA() {
+  let loggined = useSelector(state => state.logginedReducer.loggined);
+  const dispatch = useDispatch();
   const [publicKey, setPublicKey] = useState({ n: "", e: "" });
   const [keySize, setKeySize] = useState(512);
   const [privateKey, setPrivateKey] = useState("");
@@ -331,244 +336,271 @@ export default function SecureCommunicationRSA() {
   } else {
     marginTopMaHoa_1 = "20px";
   }
+  const auth = getAuth();
+  const navigate = useNavigate();
 
-  return (
-    <div
-      width={width}
-      className="container-fluid"
-      style={{ backgroundColor: "#E2DFD0", height: height }}
-    >
+  async function handleSignOut() {
+    try {
+      await signOut(auth);
+      navigate("/login");
+    } catch(err) {
+      console.log(err)
+    }
+  }
+
+  if (localStorage.getItem("loggined") == "true"){
+    return (
       <div
-        className="row firstRow"
-        style={{ backgroundColor: "#524C42", marginBottom: "2%" }}
+        width={width}
+        className="container-fluid"
+        style={{ backgroundColor: "#E2DFD0", height: height }}
       >
-        <h1 className="text-center p-3 h1_firstTitle" style={{ color: "#F97300" }}>
-          Chương trình truyền tin mật sử dụng RSA
-        </h1>
-      </div>
-      <div className="row secondRow">
-        <div className="col-4">
-          <div className="section">
-            <h2>
-              Tạo khóa <i style={{ color: "#F3CA52" }} class="fa fa-key"></i>
-            </h2>
-            <hr />
-            <div>
-              <span style={{ marginRight: 10 }}>Kích thước</span>
-              <select
-                style={{ padding: 5 }}
-                id="keySize"
-                value={keySize}
-                onChange={(e) => setKeySize(parseInt(e.target.value))}
-              >
-                <option value={512}>512</option>
-                <option value={1024}>1024</option>
-                <option value={2048}>2048</option>
-              </select>
-            </div>
-
-            <br />
-            <div>
+        <div
+          className="row firstRow p-3"
+          style={{ backgroundColor: "#524C42", marginBottom: "2%" }}
+        >
+          <h3 className="account">Tài khoản: {JSON.parse(localStorage.getItem("email"))}</h3>
+          <h1 className="text-center  h1_firstTitle" style={{ color: "#F97300" }}>
+            Chương trình truyền tin mật sử dụng RSA
+          </h1>
+        </div>
+        <div className="row secondRow">
+          <div className="col-4">
+            <div className="section">
+              <h2>
+                Tạo khóa <i style={{ color: "#F3CA52" }} class="fa fa-key"></i>
+              </h2>
+              <hr />
+              <div>
+                <span style={{ marginRight: 10 }}>Kích thước</span>
+                <select
+                  style={{ padding: 5 }}
+                  id="keySize"
+                  value={keySize}
+                  onChange={(e) => setKeySize(parseInt(e.target.value))}
+                >
+                  <option value={512}>512</option>
+                  <option value={1024}>1024</option>
+                  <option value={2048}>2048</option>
+                </select>
+              </div>
+  
+              <br />
+              <div>
+                <button
+                  style={{ marginTop: "30px" }}
+                  className="btn btn-primary mb-2"
+                  id="generateKeyPairButton"
+                  onClick={generateKeyPair}
+                >
+                  Tạo khóa
+                </button>
+                <button className="btn btn-info">upload publicKey</button>
+                <button className="btn btn-info">upload privateKey</button>
+              </div>
+  
               <button
-                style={{ marginTop: "30px" }}
-                className="btn btn-primary mb-2"
-                id="generateKeyPairButton"
-                onClick={generateKeyPair}
+                style={{ marginTop: 10 }}
+                className="btn btn-info me-3 btn_saveKeyRes"
+                onClick={savePublicKeyToFile}
               >
-                Tạo khóa
+                Lưu khóa công khai
               </button>
-              <button className="btn btn-info">upload publicKey</button>
-              <button className="btn btn-info">upload privateKey</button>
-            </div>
-
-            <button
-              style={{ marginTop: 10 }}
-              className="btn btn-info me-3 btn_saveKeyRes"
-              onClick={savePublicKeyToFile}
-            >
-              Lưu khóa công khai
-            </button>
-            <button
-              style={{ marginTop: 10, marginRight: 30 }}
-              className="btn btn-info btn_saveKeyRes"
-              onClick={savePrivateKeyToFile}
-            >
-              Lưu khóa bí mật
-            </button>
-            <div id="keyDisplay">
-              {publicKey.n && publicKey.e && (
-                <div className="d-flex mb-2 mt-4 publicKeyDiv">
-                  <p className="key_1">Khóa công khai:</p>
-                  <textarea
-                    className="form-control textArea_TaoKhoa"
-                    style={{ width: 300, height: 150 }}
-                    id="publicKey"
-                    readOnly
-                    value={`e: ${publicKey.e}\nn: ${publicKey.n}`}
-                  />
-                </div>
-              )}
-              {privateKey && (
-                <div className="d-flex">
-                  <p
-                    style={{ marginRight: "6%", marginLeft: "1%" }}
-                    className="key_1"
-                  >
-                    Khóa bí mật:
-                  </p>
-                  <textarea
-                    className="form-control textArea_TaoKhoa khoa2"
-                    style={{ width: 300, height: 150 }}
-                    id="privateKey"
-                    readOnly
-                    value={`d: ${privateKey}\nn: ${publicKey.n}`}
-                  />
-                </div>
-              )}
+              <button
+                style={{ marginTop: 10, marginRight: 30 }}
+                className="btn btn-info btn_saveKeyRes"
+                onClick={savePrivateKeyToFile}
+              >
+                Lưu khóa bí mật
+              </button>
+              <div id="keyDisplay">
+                {publicKey.n && publicKey.e && (
+                  <div className="d-flex mb-2 mt-4 publicKeyDiv">
+                    <p className="key_1">Khóa công khai:</p>
+                    <textarea
+                      className="form-control textArea_TaoKhoa"
+                      style={{ width: 300, height: 150 }}
+                      id="publicKey"
+                      readOnly
+                      value={`e: ${publicKey.e}\nn: ${publicKey.n}`}
+                    />
+                  </div>
+                )}
+                {privateKey && (
+                  <div className="d-flex">
+                    <p
+                      style={{ marginRight: "6%", marginLeft: "1%" }}
+                      className="key_1"
+                    >
+                      Khóa bí mật:
+                    </p>
+                    <textarea
+                      className="form-control textArea_TaoKhoa khoa2"
+                      style={{ width: 300, height: 150 }}
+                      id="privateKey"
+                      readOnly
+                      value={`d: ${privateKey}\nn: ${publicKey.n}`}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-        <div className="col-4">
-          <div className="section">
-            <h2>
-              Người gửi <i class="fa fa-paper-plane text-primary"></i>
-            </h2>
-            <hr />
-            <div>
-              <div style={{ margin: "auto" }}>
-                {!uploadedMessage ? (
+          <div className="col-4">
+            <div className="section">
+              <h2>
+                Người gửi <i class="fa fa-paper-plane text-primary"></i>
+              </h2>
+              <hr />
+              <div>
+                <div style={{ margin: "auto" }}>
+                  {!uploadedMessage ? (
+                    <button
+                      style={{ marginBottom: `${marginBottomNhapTinNhanButton}` }}
+                      className="btn btn-info me-3 mt-0"
+                      onClick={() => {
+                        setTypeTextinput(true);
+                      }}
+                    >
+                      Nhập tin nhắn
+                    </button>
+                  ) : (
+                    <button
+                      className="btn btn-info me-3 mt-0"
+                      disabled={true}
+                      style={{
+                        cursor: "no-drop",
+                        marginBottom: `${marginBottomNhapTinNhanButton}`,
+                      }}
+                    >
+                      Nhập tin nhắn
+                    </button>
+                  )}
+  
                   <button
                     style={{ marginBottom: `${marginBottomNhapTinNhanButton}` }}
-                    className="btn btn-info me-3 mt-0"
+                    className="btn btn-info mt-0"
                     onClick={() => {
-                      setTypeTextinput(true);
+                      document.getElementById("fileInput").click();
+                      setTypeTextinput(false);
                     }}
                   >
-                    Nhập tin nhắn
+                    Upload file txt
                   </button>
-                ) : (
-                  <button
-                    className="btn btn-info me-3 mt-0"
-                    disabled={true}
-                    style={{
-                      cursor: "no-drop",
-                      marginBottom: `${marginBottomNhapTinNhanButton}`,
-                    }}
-                  >
-                    Nhập tin nhắn
-                  </button>
-                )}
-
-                <button
-                  style={{ marginBottom: `${marginBottomNhapTinNhanButton}` }}
-                  className="btn btn-info mt-0"
-                  onClick={() => {
-                    document.getElementById("fileInput").click();
-                    setTypeTextinput(false);
-                  }}
-                >
-                  Upload file txt
-                </button>
-                <input
-                  id="fileInput"
-                  type="file"
-                  accept=".txt"
-                  style={{ display: "none" }}
-                  onChange={handleFileUpload}
-                />
-              </div>
-              {typeTextInput ? (
-                <div className="d-flex align-items-center">
-                  <span className="me-3">Đầu vào</span>
                   <input
-                    id="senderMessage"
-                    placeholder="Nhập tin nhắn"
-                    className="form-control"
-                    value={senderMessage}
-                    onChange={(e) => setSenderMessage(e.target.value)}
+                    id="fileInput"
+                    type="file"
+                    accept=".txt"
+                    style={{ display: "none" }}
+                    onChange={handleFileUpload}
                   />
                 </div>
+                {typeTextInput ? (
+                  <div className="d-flex align-items-center">
+                    <span className="me-3">Đầu vào</span>
+                    <input
+                      id="senderMessage"
+                      placeholder="Nhập tin nhắn"
+                      className="form-control"
+                      value={senderMessage}
+                      onChange={(e) => setSenderMessage(e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  ""
+                )}
+              </div>
+              {!uploadedMessage ? (
+                <button
+                  style={{ marginTop: `${marginTopMaHoa_1}` }}
+                  className="btn btn-primary"
+                  onClick={() => {
+                    if (typeTextInput) {
+                      encryptMessage(
+                        document.getElementById("senderMessage").value
+                      );
+                    } else {
+                      encryptMessage(-1);
+                    }
+                  }}
+                >
+                  Mã hóa tin nhắn
+                </button>
               ) : (
-                ""
+                <button
+                  className="btn btn-primary"
+                  onClick={encryptUploadedMessage} // Khi người dùng nhấp vào nút "Mã hóa", gọi hàm để mã hóa tin nhắn từ tệp tin đã tải lên
+                >
+                  Mã hóa file
+                </button>
               )}
-            </div>
-            {!uploadedMessage ? (
-              <button
-                style={{ marginTop: `${marginTopMaHoa_1}` }}
-                className="btn btn-primary"
-                onClick={() => {
-                  if (typeTextInput) {
-                    encryptMessage(
-                      document.getElementById("senderMessage").value
-                    );
-                  } else {
-                    encryptMessage(-1);
-                  }
-                }}
-              >
-                Mã hóa tin nhắn
-              </button>
-            ) : (
-              <button
-                className="btn btn-primary"
-                onClick={encryptUploadedMessage} // Khi người dùng nhấp vào nút "Mã hóa", gọi hàm để mã hóa tin nhắn từ tệp tin đã tải lên
-              >
-                Mã hóa file
-              </button>
-            )}
-            <p className="mb-0">Kết quả sau khi mã hóa:</p>
-            <textarea
-              className="form-control textarea_SR fdakfjda"
-              style={{ width: 300, height: 300, margin: "auto" }}
-              id="encryptedMessage"
-              readOnly
-              value={encryptedMessage}
-            />
-          </div>
-        </div>
-
-        <div className="col-4">
-          <div className="section">
-            <h2>
-              Người nhận <i class="fa-solid fa-person text-primary"></i>
-            </h2>
-            <hr />
-            <div className="d-flex align-items-center">
-              <span>Đầu vào</span>
-              <input
-                id="receiverInput"
-                placeholder="Nhập mã"
-                className="form-control"
+              <p className="mb-0">Kết quả sau khi mã hóa:</p>
+              <textarea
+                className="form-control textarea_SR fdakfjda"
+                style={{ width: 300, height: 300, margin: "auto" }}
+                id="encryptedMessage"
+                readOnly
                 value={encryptedMessage}
               />
             </div>
-            <button
-              className="btn btn-primary btn_KiemTra"
-              onClick={() =>
-                decryptMessage(document.getElementById("receiverInput").value)
-              }
-              style={{ marginTop: "55px" }}
-            >
-              Kiểm tra
-            </button>
-            <p className="mb-0">Kết quả sau khi giải mã:</p>
-            <textarea
-              className="form-control textarea_SR"
-              style={{ width: 300, height: 300, margin: "auto" }}
-              id="decryptedMessage"
-              readOnly
-              value={decryptedMessage}
-            />
+          </div>
+  
+          <div className="col-4">
+            <div className="section">
+              <h2>
+                Người nhận <i class="fa-solid fa-person text-primary"></i>
+              </h2>
+              <hr />
+              <div className="d-flex align-items-center">
+                <span>Đầu vào</span>
+                <input
+                  id="receiverInput"
+                  placeholder="Nhập mã"
+                  className="form-control"
+                  value={encryptedMessage}
+                />
+              </div>
+              <button
+                className="btn btn-primary btn_KiemTra"
+                onClick={() =>
+                  decryptMessage(document.getElementById("receiverInput").value)
+                }
+                style={{ marginTop: "55px" }}
+              >
+                Kiểm tra
+              </button>
+              <p className="mb-0">Kết quả sau khi giải mã:</p>
+              <textarea
+                className="form-control textarea_SR"
+                style={{ width: 300, height: 300, margin: "auto" }}
+                id="decryptedMessage"
+                readOnly
+                value={decryptedMessage}
+              />
+            </div>
           </div>
         </div>
+        <div className="row d-flex justify-content-center">
+          {encryptedMessage && (
+            <button className="btn btn-info" onClick={handleReset}>
+              Reset
+            </button>
+          )}
+            {loggined && <button className="btn btn-info" onClick={() => {
+              localStorage.setItem("loggined", "false");
+              dispatch({
+                type: "LOGGINED_FAILED",
+                loggined: false,
+              })
+              handleSignOut();
+            }}>
+              Sign Out
+            </button>}
+        </div>
       </div>
-      <div className="row d-flex justify-content-center">
-        {encryptedMessage && (
-          <button className="btn btn-info" onClick={handleReset}>
-            Reset
-          </button>
-        )}
-      </div>
-    </div>
-  );
+    );
+  } else {
+    alert("Vui lòng đăng nhập để có thể dùng ứng dụng");
+    return <Navigate to={"/login"}/>
+  }
 }

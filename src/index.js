@@ -5,7 +5,10 @@ import reportWebVitals from "./reportWebVitals";
 //import store
 import store from "./redux/configStore";
 import {Provider} from "react-redux"
+import {firebaseConfig} from "./FireBase/FireBaseConfig/fireBaseConfig";
+import { initializeApp } from "firebase/app";
 
+const app = initializeApp(firebaseConfig);
 
 const root = createRoot(document.getElementById("root"));
 root.render(
