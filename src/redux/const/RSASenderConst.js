@@ -1,0 +1,1 @@
+export const XEM_THU_GUI_DEN = "XEM_THU_GUI_DEN";

@@ -14,6 +14,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 // import { signInWithEmailAndPassword } from "firebase/auth";
 // import { RSAglobalNavigate } from "../util/RSAGlobalNavigate";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../FireBase/FireBaseConfig/fireBaseConfig";
 
 // export let loggined = false;
 export default function LoginCyberBugs(props) {
@@ -24,13 +25,12 @@ export default function LoginCyberBugs(props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   
-  const auth = getAuth();
   async function handleSignIn(e) {
     e.preventDefault();
     signInWithEmailAndPassword(auth, email, password)
     .then((user) => {
-      console.log(user)
-      navigate("/");
+      console.log("user",user)
+      navigate("/home");
       localStorage.setItem("loggined", "true");
       localStorage.setItem("email", JSON.stringify(email))
       dispatch({
@@ -129,37 +129,4 @@ export default function LoginCyberBugs(props) {
   );
 }
 
-// const userLoginFormWithFormik = withFormik({
-//   mapPropsToValues: () => ({
-//     email: "",
-//     password: "",
-//   }),
 
-//   validationSchema: Yup.object().shape({
-//     email: Yup.string()
-//       .email("Invalid email format")
-//       .required("Email is required"),
-//     password: Yup.string()
-//       .min(6, "Password must have min 6 characters")
-//       .max(20, "Password must have max 12 characters")
-//       .required("Password is required"),
-//   }),
-
-//   handleSubmit: (values, { props, setSubmitting }) => {
-//     signInWithEmailAndPassword(auth, values.email, values.password)
-//       .then((userCredential) => {
-//         // Đăng nhập thành công
-//         const user = userCredential.user;
-//         console.log("User logged in:", user);
-//         // Chuyển hướng sang trang chủ
-//         RSAglobalNavigate("/");
-//       })
-//       .catch((error) => {
-//         console.error("Error logging in:", error);
-//         setSubmitting(false);
-//       });
-//   },
-//   displayName: "Login CyberBugs",
-// })(LoginCyberBugs);
-
-// export default connect()(userLoginFormWithFormik);

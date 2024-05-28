@@ -10,7 +10,9 @@ import { withFormik } from "formik";
 import * as Yup from "yup";
 import { connect } from "react-redux";
 import { NavLink, useNavigate } from "react-router-dom";
-import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../FireBase/FireBaseConfig/fireBaseConfig";
+import Swal from 'sweetalert2'
 
 
 export default function RegisterCyberBugs(props) {
@@ -19,16 +21,24 @@ export default function RegisterCyberBugs(props) {
   // const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-  const auth = getAuth();
   async function handleSubmit(e) {
     e.preventDefault();
     createUserWithEmailAndPassword(auth, email, password)
     .then((user) => {
       console.log(user);
+      Swal.fire({
+        title: 'Đăng kí thành công!',
+        icon: 'success',
+        confirmButtonText: 'OK'
+      })
     })
     .catch((err) => {
       console.log(err);
+      Swal.fire({
+        title: 'Đăng kí thất bại!',
+        icon: 'error',
+        confirmButtonText: 'OK'
+      })
     });
   }
 
@@ -98,37 +108,4 @@ export default function RegisterCyberBugs(props) {
   );
 }
 
-// const userRegisterFormWithFormik = withFormik({
-//   mapPropsToValues: () => ({
-//     email: "",
-//     password: "",
-//   }),
 
-//   validationSchema: Yup.object().shape({
-//     email: Yup.string()
-//       .email("Invalid email format")
-//       .required("Email is required"),
-//     password: Yup.string()
-//       .min(6, "Password must have min 6 characters")
-//       .max(20, "Password must have max 12 characters")
-//       .required("Password is required"),
-//   }),
-
-//   handleSubmit: (values, { props, setSubmitting }) => {
-//     createUserWithEmailAndPassword(auth, values.email, values.password)
-//       .then((userCredential) => {
-//         // Đăng ký thành công
-//         const user = userCredential.user;
-//         console.log("User registered:", user);
-//         // Chuyển hướng sang trang đăng nhập
-//         RSAglobalNavigate("/login");
-//       })
-//       .catch((error) => {
-//         console.error("Error registering user:", error);
-//         setSubmitting(false);
-//       });
-//   },
-//   displayName: "Register CyberBugs",
-// })(RegisterCyberBugs);
-
-// export default connect()(userRegisterFormWithFormik);
