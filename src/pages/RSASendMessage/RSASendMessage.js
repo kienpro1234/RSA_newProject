@@ -7,17 +7,31 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { XEM_THU_GUI_DEN } from "../../redux/const/RSASenderConst";
 import HomThuSender from "./HomThuSender";
+import {
+  getPublicKeysForUser,
+  sendEncryptedMessage,
+} from "../../FireBase/FirebaseStoreFunction/db";
 
 export default function RSASendMessage() {
+  let { choosePublicKey } = useSelector((state) => state.ModalReducer);
   let loggined = useSelector((state) => state.logginedReducer.loggined);
+  let userEmail = "";
+  if (loggined) {
+    userEmail = JSON.parse(localStorage.getItem("email"));
+  } else {
+    userEmail = "";
+  }
   const dispatch = useDispatch();
-  const [publicKey, setPublicKey] = useState({ n: "", e: "" });
+  const publicKey = useSelector((state) => state.ModalReducer.publicKeySender);
+  // public key nhận vào từ bên ngoài
+  const [publicKeys, setPublicKeys] = useState([]);
   const [encryptedMessage, setEncryptedMessage] = useState("");
   const [uploadedMessage, setUploadedMessage] = useState(""); // Đối tượng state để lưu trữ nội dung của tệp tin tin nhắn
   const [typeTextInput, setTypeTextinput] = useState("");
   // Khai báo state cho giá trị của các input và textarea
   const [senderMessage, setSenderMessage] = useState("");
   const [receiverInput, setReceiverInput] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
   const handleReset = () => {
     setSenderMessage("");
     setReceiverInput("");
@@ -30,6 +44,7 @@ export default function RSASendMessage() {
   });
 
   useEffect(() => {
+    handleFetchPublicKeys();
     window.onresize = () => {
       setSize({
         width: window.innerWidth,
@@ -151,6 +166,23 @@ export default function RSASendMessage() {
     }
   }
 
+  // Hàm mới thêm vào
+  const handleFetchPublicKeys = async () => {
+    const publicKeys = await getPublicKeysForUser(userEmail);
+    setPublicKeys(publicKeys);
+  };
+
+  const handleSendMessage = async () => {
+    try {
+      // Mã hóa tin nhắn trước khi gửi
+      await sendEncryptedMessage(recipientEmail, userEmail, encryptedMessage);
+      alert("Encrypted message sent successfully!");
+    } catch (error) {
+      console.error("Failed to send encrypted message: ", error.message);
+      alert("Failed to send encrypted message: " + error.message);
+    }
+  };
+
   if (localStorage.getItem("loggined") == "true") {
     return (
       <div
@@ -172,7 +204,7 @@ export default function RSASendMessage() {
             Gửi tin nhắn
           </h1>
           <span
-          style={{width: "20px"}}
+            style={{ width: "20px" }}
             className="goBack"
             onClick={() => {
               navigate("/home");
@@ -199,17 +231,38 @@ export default function RSASendMessage() {
                   data-bs-toggle="modal"
                   data-bs-target="#exampleModal"
                   onClick={() => {
-                    dispatch({
-                      type: XEM_THU_GUI_DEN,
-                      Component: <HomThuSender />,
-                    });
+                    handleFetchPublicKeys();
+                    setTimeout(() => {
+                      dispatch({
+                        type: XEM_THU_GUI_DEN,
+                        Component: <HomThuSender />,
+                        publicKeys: publicKeys,
+                      });
+                    }, 500);
                   }}
                 >
                   Click vào để xem
                 </button>
               </div>
 
-              <br />
+              <div>
+                {choosePublicKey ? (
+                  <Fragment>
+                    <div className="publicKeySenderHomThu">
+                      <span>Khóa công khai: </span>
+                    </div>
+                    <div>
+                      <textarea
+                        className="form-control textarea_PublicKey_Sender"
+                        readOnly
+                        value={`e: ${publicKey.e}\nn: ${publicKey.n}`}
+                      />
+                    </div>
+                  </Fragment>
+                ) : (
+                  ""
+                )}
+              </div>
             </div>
           </div>
           <div className="col-4">
@@ -320,14 +373,18 @@ export default function RSASendMessage() {
               </h2>
               <hr />
               <div className="form-group">
-                <p className="fs-4">Chọn người để gửi</p>
-                <select className="form-control">
-                  <option value={1}>Người 1</option>
-                  <option value={2}>Người 2</option>
-                  <option value={3}>Người 3</option>
-                </select>
+                <p className="fs-4">Nhập người để gửi</p>
+                <input
+                className="form-control"
+                  type="email"
+                  placeholder="Recipient's Email"
+                  value={recipientEmail}
+                  onChange={(e) => setRecipientEmail(e.target.value)}
+                />
               </div>
-              <button className="btn btn-primary">Gửi</button>
+              <button onClick={handleSendMessage} className="btn btn-primary">
+                Gửi
+              </button>
             </div>
           </div>
         </div>

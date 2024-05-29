@@ -11,7 +11,7 @@
 }
 
 .section{
-    min-height: 680px;
+    min-height: 700px;
     padding: 30px;
     min-width: 500px;
     text-align: center;
@@ -52,6 +52,20 @@ span{
 }
 
 /* RESPONSIVE */
+@media screen and (min-width: 1860px){
+    .publicKeyReceiver{
+        margin-right: 4.5%!important;
+    }
+    .publicKeyDiv{
+        justify-content: center;
+        margin-right: 12%!important;
+    }
+}
+@media screen and (max-width: 1859px){
+    .publicKeyDiv{
+        transform: translateX(-3%);
+    }
+}
 
 @media screen and (max-width: 1280px) {
     .section{

@@ -7,15 +7,36 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import HomThuReceiver from "./HomThuReceiver";
 import { XEM_THU_GUI_DEN_RECEIVER } from "../../redux/const/RSAReceiverConst";
+import {
+  getEncryptedMessages,
+  getPublicKeysForUser,
+  sendPublicKey,
+} from "../../FireBase/FirebaseStoreFunction/db";
 
 export default function RSAReceiveMessage() {
-  let loggined = useSelector(state => state.logginedReducer.loggined);
+  let encryptedMessageReceiver = useSelector(
+    (state) => state.ModalReducer.encryptedMessageReceiver
+  );
+  let loggined = useSelector((state) => state.logginedReducer.loggined);
+  let userEmail = "";
+  if (loggined) {
+    userEmail = JSON.parse(localStorage.getItem("email"));
+  } else {
+    userEmail = "";
+  }
   const dispatch = useDispatch();
   const [publicKey, setPublicKey] = useState({ n: "", e: "" });
-  const [keySize, setKeySize] = useState(512);
-  const [privateKey, setPrivateKey] = useState("");
-  const [encryptedMessage, setEncryptedMessage] = useState("");
+  const [privateKey, setPrivateKey] = useState({ n: "", d: "" });
+  console.log("privatekey", privateKey);
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [publicKeys, setPublicKeys] = useState([]);
+  const [encryptedMessages, setEncryptedMessages] = useState([]);
   const [decryptedMessage, setDecryptedMessage] = useState("");
+  const [keySize, setKeySize] = useState(512);
+  const [decryptedMessages, setDecryptedMessages] = useState([]);
+
+  const [encryptedMessage, setEncryptedMessage] = useState("");
+
   const [uploadedMessage, setUploadedMessage] = useState(""); // Đối tượng state để lưu trữ nội dung của tệp tin tin nhắn
   const [fileInputKey, setFileInputKey] = useState(0);
   const [typeTextInput, setTypeTextinput] = useState("");
@@ -92,7 +113,7 @@ export default function RSAReceiveMessage() {
     d = e.modInv(phi);
 
     const newPublicKey = { n: n.toString(), e: e.toString() };
-    const newPrivateKey = d.toString();
+    const newPrivateKey = { n: n.toString(), d: d.toString() };
 
     setPublicKey(newPublicKey);
     setPrivateKey(newPrivateKey);
@@ -161,7 +182,7 @@ export default function RSAReceiveMessage() {
   };
 
   const decryptMessage = (encryptedMessage) => {
-    if (!privateKey) {
+    if (!privateKey.d) {
       Swal.fire({
         title: "Lỗi",
         text: "Vui lòng tạo cặp khóa trước khi giải mã tin nhắn.",
@@ -181,12 +202,14 @@ export default function RSAReceiveMessage() {
       return;
     }
 
+    // Kiểm tra xem publicKey đã được tạo chưa
+
     const encryptedCharCodes = encryptedMessage
       .split(",")
       .map((hex) => bigInt(hex, 16));
 
     const decryptedCharCodes = encryptedCharCodes.map((charCode) =>
-      charCode.modPow(privateKey, publicKey.n)
+      charCode.modPow(privateKey.d, privateKey.n)
     );
 
     const decryptedMessage = decryptedCharCodes
@@ -231,7 +254,7 @@ export default function RSAReceiveMessage() {
 
   const savePrivateKeyToFile = () => {
     // Kiểm tra xem khóa bí mật đã được tạo chưa
-    if (!privateKey) {
+    if (!privateKey.d) {
       Swal.fire({
         title: "Lỗi",
         text: "Vui lòng tạo cặp khóa trước khi lưu khóa bí mật.",
@@ -242,7 +265,7 @@ export default function RSAReceiveMessage() {
     }
 
     //lưu khóa bí mật
-    const privateKeyText = `Private Key:\n${privateKey}`;
+    const privateKeyText = `Private Key:\nd:${privateKey.d}\nn:${privateKey.n}`;
     const privateKeyBlob = new Blob([privateKeyText], { type: "text/plain" });
     const privateKeyUrl = URL.createObjectURL(privateKeyBlob);
 
@@ -294,7 +317,7 @@ export default function RSAReceiveMessage() {
             style={{ width: 300, height: 150 }}
             id="privateKey"
             readOnly
-            value={privateKey}
+            value={privateKey.d}
           />
         </div>
       );
@@ -345,12 +368,109 @@ export default function RSAReceiveMessage() {
     try {
       await signOut(auth);
       navigate("/login");
-    } catch(err) {
-      console.log(err)
+    } catch (err) {
+      console.log(err);
     }
   }
 
-  if (localStorage.getItem("loggined") == "true"){
+  // Những hàm mới thêm
+  // Xử lý upload private key
+  const handlePrivateKeyUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) {
+      Swal.fire({
+        title: "Lỗi",
+        text: "Vui lòng chọn một tập tin.",
+        icon: "error",
+        confirmButtonText: "OK",
+      });
+      return;
+    }
+
+    if (!file.type.match("text.*")) {
+      Swal.fire({
+        title: "Lỗi",
+        text: "Chỉ chấp nhận tập tin có định dạng văn bản.",
+        icon: "error",
+        confirmButtonText: "OK",
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target.result;
+      if (!content) {
+        Swal.fire({
+          title: "Lỗi",
+          text: "Nội dung tệp tin trống.",
+          icon: "error",
+          confirmButtonText: "OK",
+        });
+        return;
+      }
+
+      console.log("Nội dung tệp tin:", content); // Log nội dung tệp tin
+
+      const lines = content.split("\n");
+      if (lines.length < 3 || !lines[1].trim() || !lines[2].trim()) {
+        Swal.fire({
+          title: "Lỗi",
+          text: "Tập tin không đúng định dạng hoặc thiếu khóa bí mật.",
+          icon: "error",
+          confirmButtonText: "OK",
+        });
+        return;
+      }
+
+      console.log("Dòng chứa khóa bí mật:", lines[1], lines[2]); // Log dòng chứa khóa bí mật
+
+      const dLine = lines[1].trim();
+      const nLine = lines[2].trim();
+
+      const d = dLine.startsWith("d:") ? dLine.slice(2).trim() : null;
+      const n = nLine.startsWith("n:") ? nLine.slice(2).trim() : null;
+
+      if (d && n) {
+        setPrivateKey({ d, n });
+        Swal.fire({
+          text: "Upload khóa bí mật thành công!",
+          icon: "success",
+          confirmButtonText: "OK",
+        });
+      } else {
+        console.log("Khóa bí mật không hợp lệ");
+        Swal.fire({
+          title: "Lỗi",
+          text: "Khóa bí mật không hợp lệ.",
+          icon: "error",
+          confirmButtonText: "OK",
+        });
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Hàm gửi public key đến cho tài khoản khác
+  const handleSendPublicKey = async () => {
+    await sendPublicKey(recipientEmail, userEmail, publicKey);
+    alert("Public key sent!");
+  };
+
+  // Hàm lấy về tin nhắn mã hóa từ người gửi
+  const handleFetchMessages = async () => {
+    const messages = await getEncryptedMessages(userEmail);
+    setEncryptedMessages(messages);
+  };
+
+  let marginTop = "";
+  if (encryptedMessageReceiver) {
+    marginTop = 0;
+  } else {
+    marginTop = "21%";
+  }
+
+  if (localStorage.getItem("loggined") == "true") {
     return (
       <div
         width={width}
@@ -361,12 +481,17 @@ export default function RSAReceiveMessage() {
           className="row firstRow p-3"
           style={{ backgroundColor: "#524C42", marginBottom: "2%" }}
         >
-          <h3 className="account">Tài khoản: {JSON.parse(localStorage.getItem("email"))}</h3>
-          <h1 className="text-center  h1_firstTitle" style={{ color: "#F97300" }}>
+          <h3 className="account">
+            Tài khoản: {JSON.parse(localStorage.getItem("email"))}
+          </h3>
+          <h1
+            className="text-center  h1_firstTitle"
+            style={{ color: "#F97300" }}
+          >
             Nhận tin nhắn
           </h1>
           <span
-          style={{width: "20px"}}
+            style={{ width: "20px" }}
             className="goBack"
             onClick={() => {
               navigate("/home");
@@ -396,39 +521,58 @@ export default function RSAReceiveMessage() {
                   <option value={2048}>2048</option>
                 </select>
               </div>
-  
+
               <br />
               <div>
                 <button
-                  style={{ marginTop: "30px" }}
+                  style={{ marginTop: "-10px" }}
                   className="btn btn-primary mb-2"
                   id="generateKeyPairButton"
                   onClick={generateKeyPair}
                 >
                   Tạo khóa
                 </button>
-                <button className="btn btn-info">upload publicKey</button>
-                <button className="btn btn-info">upload privateKey</button>
               </div>
-  
-              <button
+
+              {/* <button
                 style={{ marginTop: 10 }}
                 className="btn btn-info me-3 btn_saveKeyRes"
                 onClick={savePublicKeyToFile}
               >
                 Lưu khóa công khai
-              </button>
-              <button
-                style={{ marginTop: 10, marginRight: 30 }}
-                className="btn btn-info btn_saveKeyRes"
-                onClick={savePrivateKeyToFile}
-              >
-                Lưu khóa bí mật
-              </button>
+              </button> */}
+              <div className="d-flex justify-content-center">
+                <button
+                style={{ marginTop: 10, marginRight: 7 }}
+                  className="btn btn-info"
+                  onClick={() => {
+                    document.getElementById("privateKeyUploadFile").click();
+                  }}
+                >
+                  Upload khóa bí mật
+                </button>
+                <input
+                  id="privateKeyUploadFile"
+                  type="file"
+                  accept=".txt"
+                  style={{ display: "none" }}
+                  onChange={handlePrivateKeyUpload}
+                />
+                {privateKey.d && (
+                  <button
+                    style={{ marginTop: 10}}
+                    className="btn btn-info btn_saveKeyRes"
+                    onClick={savePrivateKeyToFile}
+                  >
+                    Lưu khóa bí mật
+                  </button>
+                )}
+              </div>
+
               <div id="keyDisplay">
                 {publicKey.n && publicKey.e && (
                   <div className="d-flex mb-2 mt-4 publicKeyDiv">
-                    <p className="key_1">Khóa công khai:</p>
+                    <p className="key_1 publicKeyReceiver" style={{marginRight: "3%"}}>Khóa công khai:</p>
                     <textarea
                       className="form-control textArea_TaoKhoa"
                       style={{ width: 300, height: 150 }}
@@ -438,8 +582,8 @@ export default function RSAReceiveMessage() {
                     />
                   </div>
                 )}
-                {privateKey && (
-                  <div className="d-flex">
+                {privateKey.d && (
+                  <div className="d-flex publicKeyDiv">
                     <p
                       style={{ marginRight: "6%", marginLeft: "1%" }}
                       className="key_1"
@@ -451,15 +595,26 @@ export default function RSAReceiveMessage() {
                       style={{ width: 300, height: 150 }}
                       id="privateKey"
                       readOnly
-                      value={`d: ${privateKey}\nn: ${publicKey.n}`}
+                      value={`d: ${privateKey.d}\nn: ${privateKey.n}`}
                     />
                   </div>
                 )}
               </div>
+              <div>
+                <input
+                  type="email"
+                  placeholder="Recipient Email"
+                  value={recipientEmail}
+                  onChange={(e) => setRecipientEmail(e.target.value)}
+                />
+                <button onClick={handleSendPublicKey}>
+                  Gửi khóa công khai
+                </button>
+              </div>
             </div>
           </div>
           <div className="col-4">
-          <div className="section">
+            <div className="section">
               <h2>
                 Hòm thư{" "}
                 <i style={{ color: "#F3CA52" }} class="fa fa-envelope"></i>
@@ -474,28 +629,50 @@ export default function RSAReceiveMessage() {
                   data-bs-toggle="modal"
                   data-bs-target="#exampleModal"
                   onClick={() => {
-                    dispatch({
-                      type: XEM_THU_GUI_DEN_RECEIVER,
-                      Component: <HomThuReceiver />,
-                    });
+                    handleFetchMessages();
+                    setTimeout(() => {
+                      dispatch({
+                        type: XEM_THU_GUI_DEN_RECEIVER,
+                        Component: <HomThuReceiver />,
+                        encryptedMessages: encryptedMessages,
+                      });
+                    }, 500);
                   }}
                 >
                   Click vào để xem
                 </button>
               </div>
+              <div>
+                <p>Tin nhắn mã hóa: </p>
+                <textarea
+                  className="form-control textarea_SR"
+                  style={{ width: 300, height: 300, margin: "0 auto" }}
+                  id="encryptedMessageReceiver"
+                  readOnly
+                  value={encryptedMessageReceiver}
+                />
+              </div>
 
               <br />
             </div>
           </div>
-  
+
           <div className="col-4">
             <div className="section">
               <h2>
                 Giải mã <i class="fa fa-search-location text-primary"></i>
               </h2>
               <hr />
-            
-              <p className="mb-0">Kết quả sau khi giải mã:</p>
+              {encryptedMessageReceiver && (
+                <button
+                  className="btn btn-primary"
+                  onClick={() => decryptMessage(encryptedMessageReceiver)}
+                >
+                  Giải mã
+                </button>
+              )}
+
+              <p style={{marginTop: marginTop}}>Kết quả sau khi giải mã:</p>
               <textarea
                 className="form-control textarea_SR"
                 style={{ width: 300, height: 300, margin: "auto" }}
@@ -506,11 +683,10 @@ export default function RSAReceiveMessage() {
             </div>
           </div>
         </div>
-
       </div>
     );
   } else {
     alert("Vui lòng đăng nhập để có thể dùng ứng dụng");
-    return <Navigate to={"/login"}/>
+    return <Navigate to={"/login"} />;
   }
 }
